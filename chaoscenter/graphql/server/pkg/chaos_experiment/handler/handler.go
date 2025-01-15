@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	probeUtils "github.com/litmuschaos/litmus/chaoscenter/graphql/server/pkg/probe/utils"
+	probe "github.com/litmuschaos/litmus/chaoscenter/graphql/server/pkg/probe/handler"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	chaosTypes "github.com/litmuschaos/chaos-operator/api/litmuschaos/v1alpha1"
@@ -18,7 +18,6 @@ import (
 
 	dbSchemaProbe "github.com/litmuschaos/litmus/chaoscenter/graphql/server/pkg/database/mongodb/probe"
 
-	"github.com/litmuschaos/litmus/chaoscenter/graphql/server/pkg/authorization"
 	"github.com/litmuschaos/litmus/chaoscenter/graphql/server/pkg/chaos_infrastructure"
 	"github.com/litmuschaos/litmus/chaoscenter/graphql/server/pkg/gitops"
 
@@ -49,6 +48,7 @@ type ChaosExperimentHandler struct {
 	gitOpsService              gitops.Service
 	chaosExperimentOperator    *dbChaosExperiment.Operator
 	chaosExperimentRunOperator *dbChaosExperimentRun.Operator
+	probeService               probe.Service
 	mongodbOperator            mongodb.MongoOperator
 }
 
@@ -60,6 +60,7 @@ func NewChaosExperimentHandler(
 	gitOpsService gitops.Service,
 	chaosExperimentOperator *dbChaosExperiment.Operator,
 	chaosExperimentRunOperator *dbChaosExperimentRun.Operator,
+	probeService probe.Service,
 	mongodbOperator mongodb.MongoOperator,
 ) *ChaosExperimentHandler {
 	return &ChaosExperimentHandler{
@@ -69,11 +70,12 @@ func NewChaosExperimentHandler(
 		gitOpsService:              gitOpsService,
 		chaosExperimentOperator:    chaosExperimentOperator,
 		chaosExperimentRunOperator: chaosExperimentRunOperator,
+		probeService:               probeService,
 		mongodbOperator:            mongodbOperator,
 	}
 }
 
-func (c *ChaosExperimentHandler) SaveChaosExperiment(ctx context.Context, request model.SaveChaosExperimentRequest, projectID string, r *store.StateData) (string, error) {
+func (c *ChaosExperimentHandler) SaveChaosExperiment(ctx context.Context, request model.SaveChaosExperimentRequest, projectID string, username string) (string, error) {
 
 	var revID = uuid.New().String()
 
@@ -106,11 +108,7 @@ func (c *ChaosExperimentHandler) SaveChaosExperiment(ctx context.Context, reques
 	if err != nil {
 		return "", err
 	}
-	tkn := ctx.Value(authorization.AuthKey).(string)
-	username, err := authorization.GetUsername(tkn)
-	if err != nil {
-		return "", err
-	}
+
 	// Updating the existing experiment
 	if wfDetails.ExperimentID == request.ID {
 		logrus.WithFields(logFields).Info("request received to update k8s chaos experiment")
@@ -121,14 +119,20 @@ func (c *ChaosExperimentHandler) SaveChaosExperiment(ctx context.Context, reques
 			}
 		}
 
+		// Gitops Update
+		err = c.gitOpsService.UpsertExperimentToGit(ctx, projectID, newRequest)
+		if err != nil {
+			logrus.WithFields(logFields).Errorf("failed to push the experiment manifest to Git., err: %v", err)
+			return "", err
+		}
+
 		err = c.chaosExperimentService.ProcessExperimentUpdate(newRequest, username, wfType, revID, false, projectID, nil)
 		if err != nil {
 			return "", err
 		}
 
-		return "experiment updated successfully", nil
+		return fmt.Sprintf("experiment updated successfully with ID %s", wfDetails.ExperimentID), nil
 	}
-
 	err = c.validateDuplicateExperimentName(ctx, projectID, request.Name)
 	if err != nil {
 		return "", err
@@ -137,15 +141,22 @@ func (c *ChaosExperimentHandler) SaveChaosExperiment(ctx context.Context, reques
 	// Saving chaos experiment in the DB
 	logrus.WithFields(logFields).Info("request received to save k8s chaos experiment")
 
+	// Gitops Update
+	err = c.gitOpsService.UpsertExperimentToGit(ctx, projectID, newRequest)
+	if err != nil {
+		logrus.WithFields(logFields).Errorf("failed to push the experiment manifest to Git, err: %v", err)
+		return "", err
+	}
+
 	err = c.chaosExperimentService.ProcessExperimentCreation(ctx, newRequest, username, projectID, wfType, revID, nil)
 	if err != nil {
 		return "", err
 	}
 
-	return "experiment saved successfully", nil
+	return fmt.Sprintf("experiment saved successfully with ID %s", wfDetails.ExperimentID), nil
 }
 
-func (c *ChaosExperimentHandler) CreateChaosExperiment(ctx context.Context, request *model.ChaosExperimentRequest, projectID string, r *store.StateData) (*model.ChaosExperimentResponse, error) {
+func (c *ChaosExperimentHandler) CreateChaosExperiment(ctx context.Context, request *model.ChaosExperimentRequest, projectID string, username string) (*model.ChaosExperimentResponse, error) {
 
 	var revID = uuid.New().String()
 
@@ -160,9 +171,13 @@ func (c *ChaosExperimentHandler) CreateChaosExperiment(ctx context.Context, requ
 		return nil, err
 	}
 
-	tkn := ctx.Value(authorization.AuthKey).(string)
-	uid, err := authorization.GetUsername(tkn)
-	err = c.chaosExperimentService.ProcessExperimentCreation(context.TODO(), newRequest, uid, projectID, wfType, revID, r)
+	// Gitops Update
+	err = c.gitOpsService.UpsertExperimentToGit(ctx, projectID, newRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.chaosExperimentService.ProcessExperimentCreation(context.TODO(), newRequest, username, projectID, wfType, revID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +191,7 @@ func (c *ChaosExperimentHandler) CreateChaosExperiment(ctx context.Context, requ
 	}, nil
 }
 
-func (c *ChaosExperimentHandler) DeleteChaosExperiment(ctx context.Context, projectID string, workflowID string, workflowRunID *string, r *store.StateData) (bool, error) {
-
+func (c *ChaosExperimentHandler) DeleteChaosExperiment(ctx context.Context, projectID string, workflowID string, workflowRunID *string, r *store.StateData, username string) (bool, error) {
 	query := bson.D{
 		{"experiment_id", workflowID},
 		{"project_id", projectID},
@@ -193,20 +207,28 @@ func (c *ChaosExperimentHandler) DeleteChaosExperiment(ctx context.Context, proj
 	if workflow.IsRemoved {
 		return false, errors.New("chaos experiment already deleted: " + workflowID)
 	}
-	tkn := ctx.Value(authorization.AuthKey).(string)
-	uid, err := authorization.GetUsername(tkn)
 
 	// If workflowRunID is nil, delete the experiment and all its corresponding runs
 	if workflowRunID == nil {
 		if workflow.CronSyntax != "" {
 
-			err = c.DisableCronExperiment(uid, workflow, projectID, r)
+			err = c.DisableCronExperiment(username, workflow, projectID, r)
 			if err != nil {
 				return false, err
 			}
 		}
+		wf := model.ChaosExperimentRequest{
+			ExperimentID:   &workflow.ExperimentID,
+			ExperimentName: workflow.Name,
+		}
+
+		err = c.gitOpsService.DeleteExperimentFromGit(ctx, projectID, &wf)
+		if err != nil {
+			logrus.Errorf("error deleting experiment manifest from git, err: %v", err)
+			return false, err
+		}
 		// Delete experiment
-		err = c.chaosExperimentService.ProcessExperimentDelete(query, workflow, uid, r)
+		err = c.chaosExperimentService.ProcessExperimentDelete(query, workflow, username, r)
 		if err != nil {
 			return false, err
 		}
@@ -223,7 +245,18 @@ func (c *ChaosExperimentHandler) DeleteChaosExperiment(ctx context.Context, proj
 
 		workflowRun.IsRemoved = true
 
-		err = c.chaosExperimentRunService.ProcessExperimentRunDelete(ctx, query, workflowRunID, workflowRun, workflow, uid, r)
+		wf := model.ChaosExperimentRequest{
+			ExperimentID:   &workflow.ExperimentID,
+			ExperimentName: workflow.Name,
+		}
+
+		err = c.gitOpsService.DeleteExperimentFromGit(ctx, projectID, &wf)
+		if err != nil {
+			logrus.Errorf("Failed to delete experiment manifest from git, err: %v", err)
+			return false, err
+		}
+
+		err = c.chaosExperimentRunService.ProcessExperimentRunDelete(ctx, query, workflowRunID, workflowRun, workflow, username, r)
 		if err != nil {
 			return false, err
 		}
@@ -232,7 +265,7 @@ func (c *ChaosExperimentHandler) DeleteChaosExperiment(ctx context.Context, proj
 	return true, nil
 }
 
-func (c *ChaosExperimentHandler) UpdateChaosExperiment(ctx context.Context, request *model.ChaosExperimentRequest, projectID string, r *store.StateData) (*model.ChaosExperimentResponse, error) {
+func (c *ChaosExperimentHandler) UpdateChaosExperiment(ctx context.Context, request model.ChaosExperimentRequest, projectID string, r *store.StateData, username string) (*model.ChaosExperimentResponse, error) {
 	var (
 		revID = uuid.New().String()
 	)
@@ -243,13 +276,18 @@ func (c *ChaosExperimentHandler) UpdateChaosExperiment(ctx context.Context, requ
 		return nil, err
 	}
 
-	newRequest, wfType, err := c.chaosExperimentService.ProcessExperiment(ctx, request, projectID, revID)
+	newRequest, wfType, err := c.chaosExperimentService.ProcessExperiment(ctx, &request, projectID, revID)
 	if err != nil {
 		return nil, err
 	}
-	tkn := ctx.Value(authorization.AuthKey).(string)
-	uid, err := authorization.GetUsername(tkn)
-	err = c.chaosExperimentService.ProcessExperimentUpdate(newRequest, uid, wfType, revID, false, projectID, r)
+
+	err = c.gitOpsService.UpsertExperimentToGit(ctx, projectID, newRequest)
+	if err != nil {
+		logrus.Errorf("failed to push experiment manifest to git, err: %v", err)
+		return nil, err
+	}
+
+	err = c.chaosExperimentService.ProcessExperimentUpdate(newRequest, username, wfType, revID, false, projectID, r)
 	if err != nil {
 		return nil, err
 	}
@@ -271,8 +309,8 @@ func (c *ChaosExperimentHandler) GetExperiment(ctx context.Context, projectID st
 	pipeline = mongo.Pipeline{
 		bson.D{
 			{"$match", bson.D{
-				{"experiment_id", experimentID},
-				{"project_id", projectID},
+				{"experiment_id", bson.D{{"$eq", experimentID}}},
+				{"project_id", bson.D{{"$eq", projectID}}},
 				{"is_removed", false},
 			}},
 		},
@@ -477,7 +515,7 @@ func (c *ChaosExperimentHandler) ListExperiment(projectID string, request model.
 	// Match with identifiers
 	matchIdStage := bson.D{
 		{"$match", bson.D{
-			{"project_id", projectID},
+			{"project_id", bson.D{{"$eq", projectID}}},
 		}},
 	}
 
@@ -971,6 +1009,9 @@ func (c *ChaosExperimentHandler) getWfRunDetails(workflowIDs []string) (map[stri
 }
 
 func (c *ChaosExperimentHandler) DisableCronExperiment(username string, experiment dbChaosExperiment.ChaosExperimentRequest, projectID string, r *store.StateData) error {
+	if len(experiment.Revision) < 1 {
+		return fmt.Errorf("revision array is empty")
+	}
 	workflowManifest, err := sjson.Set(experiment.Revision[len(experiment.Revision)-1].ExperimentManifest, "spec.suspend", true)
 	if err != nil {
 		return err
@@ -1013,7 +1054,7 @@ func (c *ChaosExperimentHandler) GetExperimentStats(ctx context.Context, project
 	// Match with identifiers
 	matchIdentifierStage := bson.D{
 		{"$match", bson.D{
-			{"project_id", projectID},
+			{"project_id", bson.D{{"$eq", projectID}}},
 			{"is_removed", false},
 		}},
 	}
@@ -1196,7 +1237,33 @@ func (c *ChaosExperimentHandler) GetKubeObjData(reqID string, kubeObject model.K
 	} else if reqChan, ok := r.KubeObjectData[reqID]; ok {
 		resp := model.KubeObjectResponse{
 			InfraID: kubeObject.InfraID,
-			KubeObj: []*model.KubeObject{},
+			KubeObj: &model.KubeObject{},
+		}
+		reqChan <- &resp
+		close(reqChan)
+	}
+}
+
+func (c *ChaosExperimentHandler) GetKubeNamespaceData(reqID string, kubeNamespace model.KubeNamespaceRequest, r store.StateData) {
+	reqType := "namespace"
+	data, err := json.Marshal(kubeNamespace)
+	if err != nil {
+		logrus.Print("ERROR WHILE MARSHALLING POD DETAILS")
+	}
+	externalData := string(data)
+	payload := model.InfraActionResponse{
+		Action: &model.ActionPayload{
+			RequestID:    reqID,
+			RequestType:  reqType,
+			ExternalData: &externalData,
+		},
+	}
+	if clusterChan, ok := r.ConnectedInfra[kubeNamespace.InfraID]; ok {
+		clusterChan <- &payload
+	} else if reqChan, ok := r.KubeNamespaceData[reqID]; ok {
+		resp := model.KubeNamespaceResponse{
+			InfraID:       kubeNamespace.InfraID,
+			KubeNamespace: []*model.KubeNamespace{},
 		}
 		reqChan <- &resp
 		close(reqChan)
@@ -1283,7 +1350,7 @@ func (c *ChaosExperimentHandler) GetProbesInExperimentRun(ctx context.Context, p
 			}
 
 			for _, probeName := range _probe.ProbeNames {
-				singleProbe, err := dbSchemaProbe.GetProbeByName(ctx, probeName, projectID)
+				singleProbe, err := dbSchemaProbe.NewChaosProbeOperator(c.mongodbOperator).GetProbeByName(ctx, probeName, projectID)
 				if err != nil {
 					return nil, err
 				}
@@ -1307,7 +1374,7 @@ func (c *ChaosExperimentHandler) GetProbesInExperimentRun(ctx context.Context, p
 // validateDuplicateExperimentName validates if the name of experiment is duplicate
 func (c *ChaosExperimentHandler) validateDuplicateExperimentName(ctx context.Context, projectID, name string) error {
 	filterQuery := bson.D{
-		{"project_id", projectID},
+		{"project_id", bson.D{{"$eq", projectID}}},
 		{"name", name},
 		{"is_removed", false},
 	}
@@ -1322,7 +1389,7 @@ func (c *ChaosExperimentHandler) validateDuplicateExperimentName(ctx context.Con
 	return nil
 }
 
-func (c *ChaosExperimentHandler) UpdateCronExperimentState(ctx context.Context, workflowID string, disable bool, projectID string, r *store.StateData) (bool, error) {
+func (c *ChaosExperimentHandler) UpdateCronExperimentState(ctx context.Context, workflowID string, disable bool, projectID string, r *store.StateData, username string) (bool, error) {
 	var (
 		cronWorkflowManifest v1alpha1.CronWorkflow
 	)
@@ -1370,8 +1437,6 @@ func (c *ChaosExperimentHandler) UpdateCronExperimentState(ctx context.Context, 
 	}
 
 	//Update the revision in database
-	tkn := ctx.Value(authorization.AuthKey).(string)
-	username, err := authorization.GetUsername(tkn)
 
 	err = c.chaosExperimentService.ProcessExperimentUpdate(&model.ChaosExperimentRequest{
 		ExperimentID:       &workflowID,
@@ -1394,7 +1459,7 @@ func (c *ChaosExperimentHandler) UpdateCronExperimentState(ctx context.Context, 
 		return false, errors.New("failed to marshal workflow manifest")
 	}
 
-	cronWorkflowManifest, err = probeUtils.GenerateCronExperimentManifestWithProbes(string(updatedManifest), experiment.ProjectID)
+	cronWorkflowManifest, err = c.probeService.GenerateCronExperimentManifestWithProbes(string(updatedManifest), experiment.ProjectID)
 	if err != nil {
 		return false, fmt.Errorf("failed to unmarshal experiment manifest, error: %v", err)
 	}
@@ -1415,12 +1480,9 @@ func (c *ChaosExperimentHandler) UpdateCronExperimentState(ctx context.Context, 
 
 	return true, err
 }
-func (c *ChaosExperimentHandler) StopExperimentRuns(ctx context.Context, projectID string, experimentID string, experimentRunID *string, r *store.StateData) (bool, error) {
+func (c *ChaosExperimentHandler) StopExperimentRuns(ctx context.Context, projectID string, experimentID string, experimentRunID *string, r *store.StateData, username string) (bool, error) {
 
 	var experimentRunsID []string
-
-	tkn := ctx.Value(authorization.AuthKey).(string)
-	username, err := authorization.GetUsername(tkn)
 
 	query := bson.D{
 		{"experiment_id", experimentID},
@@ -1454,7 +1516,7 @@ func (c *ChaosExperimentHandler) StopExperimentRuns(ctx context.Context, project
 		if len(experimentRunsID) == 0 && experiment.CronSyntax == "" {
 			return false, fmt.Errorf("no running or timeout experiments found")
 		}
-	} else if experimentRunID != nil && *experimentRunID != "" {
+	} else if *experimentRunID != "" {
 		experimentRunsID = []string{*experimentRunID}
 	}
 
