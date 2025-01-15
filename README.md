@@ -9,9 +9,10 @@
 [![GitHub stars](https://img.shields.io/github/stars/litmuschaos/litmus?style=social)](https://github.com/litmuschaos/litmus/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/litmuschaos/litmus)](https://github.com/litmuschaos/litmus/issues)
 [![Twitter Follow](https://img.shields.io/twitter/follow/litmuschaos?style=social)](https://twitter.com/LitmusChaos)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/3202/badge)](https://bestpractices.coreinfrastructure.org/projects/3202)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/3202/badge)](https://www.bestpractices.dev/projects/3202)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Flitmuschaos%2Flitmus.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Flitmuschaos%2Flitmus?ref=badge_shield)
 [![YouTube Channel](https://img.shields.io/badge/YouTube-Subscribe-red)](https://www.youtube.com/channel/UCa57PMqmz_j0wnteRa9nCaw)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20LitmusChaos%20Guru-006BFF)](https://gurubase.io/g/litmuschaos)
 <br><br><br><br>
 
 #### *Read this in [other languages](translations/TRANSLATIONS.md).*
@@ -55,8 +56,6 @@ ChaosExperiment CRs are hosted on <a href="https://hub.litmuschaos.io" target="_
 application developers or vendors share their chaos experiments so that their users can use them to increase the resilience of the applications 
 in production.
 
-![chaos-operator-flow](/images/chaos-operator-flow.png)
-
 ## Use cases
 
 - **For Developers**: To run chaos experiments during application development as an extension of unit testing or integration testing.
@@ -87,7 +86,19 @@ Feel free to reach out if you have any queries,concerns, or feature requests
 
 - To join our [Slack Community](https://slack.litmuschaos.io/) and meet our community members, put forward your questions & opinions, join the #litmus channel on the [Kubernetes Slack](https://slack.k8s.io/). 
 ### Community Meetings
-The Litmus community meets on the third wednesday of every month at 10:00PM IST/6:30 PM CEST/9:30 AM PST.
+
+1. Community Meetings
+These will be hosted every 3rd Wednesday of every month at  5:30 PM GMT /6:30 PM CEST /10 PM IST
+The community meetings will involve discussing community updates, sharing updates on new features/releases and discussing user/adopter stories. Everyone in the community is invited for the same to participate in the LitmusChaos community meetings.
+
+
+2. Contributor Meetings
+These will be hosted every second & last Thursday of every month at  2:30 PM GMT /3:30 PM CEST /7 PM IST
+The contributor meetings are only meant to discuss technical and non-technical contributions to LitmusChaos. Maintainers, present Contributors and aspiring contributors are invited to participate in the LitmusChaos contributor meetings to discuss issues, fixes, enhancements and future contributions
+
+
+Fill out the [LitmusChaos Meetings invite form](https://forms.gle/xYZyZ2gTWMqz7xSs7) to get your Calendar invite!  
+
 
 - [Sync Up Meeting Link](https://harness-io.zoom.us/j/95100368978?pwd=b2VrdCtaakE5U3dhOElFMUJOaXVOUT09)
 - [Sync Up Agenda & Meeting Notes](https://hackmd.io/a4Zu_sH4TZGeih-xCimi3Q)
@@ -95,9 +106,18 @@ The Litmus community meets on the third wednesday of every month at 10:00PM IST/
 
 ### Videos
 
+- [What if Your System Experiences an Outage? Let's Build a Resilient Systems with Chaos Engineering](https://www.youtube.com/watch?v=3mjGEh905u4&t=1s) @ [CNCF](https://www.youtube.com/@cncf)
+- [Enhancing Cyber Resilience Through Zero Trust Chaos Experiments in Cloud Native Environments](https://youtu.be/BelNIk4Bkng) @ [CNCF](https://www.youtube.com/@cncf)
+- [LitmusChaos, with Karthik Satchitanand](https://www.youtube.com/watch?v=ks2R57hhFZk&t=503s) @ [The Kubernetes Podcast from Google](https://www.youtube.com/@TheKubernetesPodcast)
+- [Cultural Shifts: Fostering a Chaos First Mindset in Platform Engineering](https://www.youtube.com/watch?v=WUXFKxgZRsk) @ [CNCF](https://www.youtube.com/@cncf)
+- [Fire in the Cloud: Bringing Managed Services Under the Ambit of Cloud-Native Chaos Engineering](https://www.youtube.com/watch?v=xCDQp5E3VUs) @ [CNCF](https://www.youtube.com/@cncf)
+- [Security Controls for Safe Chaos Experimentation](https://www.youtube.com/watch?v=whCkvLKAw74) @ [CNCF](https://www.youtube.com/@cncf)
+- [Chaos Engineering For Hybrid Targets With LitmusChaos](https://www.youtube.com/watch?v=BZL-ngvbpbU&t=751s) @ [CNCF](https://www.youtube.com/@cncf)
 - [Cloud Native Live: Litmus Chaos Engine and a microservices demo app](https://youtu.be/hOghvd9qCzI)
 - [Chaos Engineering hands-on - An SRE ideating Chaos Experiments and using LitmusChaos | July 2022](https://youtu.be/_x_7SiesjF0) 
 - [Achieve Digital Product Resiliency with Chaos Engineering](https://youtu.be/PQrmBHgk0ps)
+- [Case Study: Bringing Chaos Engineering to the Cloud Native Developers](https://youtu.be/KSl-oKk6TPA) @ [CNCF](https://www.youtube.com/@cncf)
+- [Cloud Native Chaos Engineering with LitmusChaos](https://www.youtube.com/watch?v=ItUUqejdXr0) @ [CNCF](https://www.youtube.com/@cncf)
 - [How to create Chaos Experiments with Litmus | Litmus Chaos tutorial](https://youtu.be/mwu5eLgUKq4) @ [Is it Observable](https://www.youtube.com/c/IsitObservable)
 - [Cloud Native Chaos Engineering Preview With LitmusChaos](https://youtu.be/pMWqhS-F3tQ)
 - [Get started with Chaos Engineering with Litmus](https://youtu.be/5CI8d-SKBfc) @ [Containers from the Couch](https://www.youtube.com/c/ContainersfromtheCouch)
@@ -119,7 +139,6 @@ The Litmus community meets on the third wednesday of every month at 10:00PM IST/
 
 Community Blogs:
 
-- Daniyal Rayn: [Do I need Chaos Engineering on my environment? Trust me you need it!](https://maveric-systems.com/blog/do-i-need-chaos-engineering-on-my-environment-trust-me-you-need-it/)
 - LiveWyer: [LitmusChaos Showcase: Chaos Experiments in a Helm Chart Test Suite](https://livewyer.io/blog/2021/03/22/litmuschaos-showcase-chaos-experiments-in-a-helm-chart-test-suite/)
 - Jessica Cherry: [Test Kubernetes cluster failures and experiments in your terminal](https://opensource.com/article/21/6/kubernetes-litmus-chaos)
 - Yang Chuansheng(KubeSphere): [KubeSphere 部署 Litmus 至 Kubernetes 开启混沌实验](https://kubesphere.io/zh/blogs/litmus-kubesphere/)
@@ -128,8 +147,6 @@ Community Blogs:
 - Akram Riahi(WeScale):[Chaos Engineering : Litmus sous tous les angles](https://blog.wescale.fr/2021/03/11/chaos-engineering-litmus-sous-tous-les-angles/)
 - Prashanto Priyanshu(LensKart):[Lenskart’s approach to Chaos Engineering-Part 2](https://blog.lenskart.com/lenskarts-approach-to-chaos-engineering-part-2-6290e4f3a74e)
 - DevsDay.ru(Russian):[LitmusChaos at Kubecon EU '21](https://devsday.ru/blog/details/40746)
-- Ryan Pei(Armory): [LitmusChaos in your Spinnaker Pipeline](https://www.armory.io/blog/litmuschaos-in-your-spinnaker-pipeline/)
-- David Gildeh(Zebrium): [Using Autonomous Monitoring with Litmus Chaos Engine on Kubernetes](https://www.zebrium.com/blog/using-autonomous-monitoring-with-litmus-chaos-engine-on-kubernetes)
 
 
 ## Adopters
@@ -146,7 +163,7 @@ Litmus is licensed under the Apache License, Version 2.0. See [LICENSE](./LICENS
 
 Litmus Chaos is part of the CNCF Projects.
 
-[![CNCF](https://github.com/cncf/artwork/blob/master/other/cncf/horizontal/color/cncf-color.png)](https://landscape.cncf.io/?selected=litmus)
+[![CNCF](https://github.com/cncf/artwork/blob/main/other/cncf/horizontal/color/cncf-color.png)](https://landscape.cncf.io/?selected=litmus)
 
 ## Important Links
 
@@ -155,5 +172,5 @@ Litmus Chaos is part of the CNCF Projects.
 </a>
 <br>
 <a href="https://landscape.cncf.io/?selected=litmus">
-  CNCF Landscape <img src="https://landscape.cncf.io/images/left-logo.svg" alt="Litmus on CNCF Landscape" height="15">
+  CNCF Landscape <img src="https://landscape.cncf.io/images/cncf-landscape-horizontal-color.svg" alt="Litmus on CNCF Landscape" height="15">
 </a>
